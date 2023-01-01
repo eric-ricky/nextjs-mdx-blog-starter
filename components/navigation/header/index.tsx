@@ -1,7 +1,7 @@
 import Logo from '@/components/brand/logo';
-import Link from 'next/link';
-import React from 'react';
+import GitHubMark from '@/components/ui/github-mark';
 import ThemeToggle from '@/components/ui/theme-toggle';
+import Link from 'next/link';
 
 const menuItems = [
   { label: 'Home', link: '/' },
@@ -30,7 +30,10 @@ const Header = () => {
             ))}
           </div>
 
-          <ThemeToggle />
+          <div className="flex items-center space-x-2">
+            <GitHubMark />
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </section>

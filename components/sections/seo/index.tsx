@@ -8,10 +8,12 @@ interface ISEO {
   urlImage?: string;
 }
 
+const URL = 'https://sparkblog.vercel.app';
+
 const SEO: React.FC<ISEO> = ({
   description = 'A starter template designed to get you up and running with a Next.js-powered blog that uses MDX for content.',
   title = 'Spark Blog | Get started building with Next.JS + MDX',
-  urlImage = 'https://www.skillflowhq.com/images/preview-light.jpeg',
+  urlImage = `${URL}/images/preview-light.jpeg`,
 }) => {
   const HTMLMetaTags = [
     {
@@ -60,8 +62,8 @@ const SEO: React.FC<ISEO> = ({
   ];
 
   const otherTwitter = [
-    { property: 'twitter:domain', content: 'skillflowhq.com' },
-    { property: 'twitter:url', content: 'https://www.skillflowhq.com/' },
+    { property: 'twitter:domain', content: 'sparkblog.vercel.app' },
+    { property: 'twitter:url', content: `${URL}` },
   ];
 
   return (

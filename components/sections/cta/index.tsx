@@ -1,9 +1,8 @@
-import React from 'react';
 import Image from 'next/image';
 
 const CTA = () => {
   return (
-    <section className="py-20 relative min-h-[40vh]">
+    <section className="py-44 md:py-20 relative min-h-[40vh] ">
       <Image
         src="/images/bg.avif"
         alt="Call to action"
