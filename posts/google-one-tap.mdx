@@ -1,0 +1,191 @@
+---
+title: Next JS- How To Enable Google One Tap Sign In With Next.js and Firebase
+tags:
+  - react
+  - Nextjs
+  - Oauth
+  - Firebaseauthentication
+  - Google Auth
+date: 2019-10-24
+excerpt: In this tutorial we’ll walk through the implementation of Google one tap sign in using NextJS and Firebase. The best part is, it’s easy!
+image: '/images/google_one_tap.png'
+---
+
+Google one tap sign in is a great feature that allows your users to log into their accounts without having the password. Of course this has the added benefit of making the sign in process more efficient, but it also reduces the number of inputs required when entering username and password.
+
+In this tutorial we’ll walk through the implementation of Google one tap sign in using NextJS and Firebase. The best part is: it’s easy!
+
+## Getting Started
+
+**Note:** This article assumes that you know how to set up a basic NEXT.JS application. If not you can check out the amazing documentation here — next.org
+
+## Installing dependencies
+
+We’ll install the firebase SDK and react-firebase-hooks. React firebase hooks is a set of reusable react hooks for firebase, it allows us to easily and quickly use firebase in our application.
+
+```
+# with npm
+npm i firebase
+npm install --save react-firebase-hooks
+
+# with yarn
+Yarn add firebase
+yarn add react-firebase-hooks
+```
+
+## Setting up firebase:
+
+You need to create a project in Google Cloud and add firebase to the project. For an in-depth step-by-step guide on how to create a firebase project, register and initialize your app, check out firebase
+
+After that you need to enable authentication and add google provider as a sign-in method in the firebase console.
+
+## The GSI Script
+
+To initialize pages, Next.js uses the App component. Since we want the GSI (Google sign in library) to be accessible everywhere in the application, we’ll add it here using the Next JS Script. The Script component is an extension of the HTML `<script>` element which allows us to set the loading priority of third-party scripts anywhere in the application.
+
+```jsx
+function MyApp({ Component, pageProps}){
+  return (
+   <>
+     <Script src=”https://accounts.google.com/gsi/client” />
+     <Component {...pageProps} />
+   </>
+  )
+};
+```
+
+## Firebase config:
+
+Here we export auth and google auth provider
+
+```jsx
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_MESSAGING_SENDERID,
+  appId: process.env.NEXT_PUBLIC_APP_ID,
+};
+// Initialize Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+export { auth, provider };
+```
+
+## Back to the App Component:
+
+There are two main functions; initializeGSI and authHandler. But first we need to get the authentication state of the user before we initialize GSI and invoke the authentication handler. For this we use `useAuthState()` from react-firebase-hooks library. It returns the authenticated user if logged in and null if not. It also returns a loading state, a boolean to indicate whether the authentication state is still being loaded.
+
+```jsx
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '../firebase/config';
+import { useCallback, useEffect } from 'react';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+
+function MyApp({ Component, pageProps }: AppPropsWithLayout) {
+  const [user, loading] = useAuthState(auth);
+  const initializeGSI = useCallback(() => {
+    // the authentication handler function
+    const authHandler = async (response: any) => {
+      const idToken = response.credential;
+      const credential = GoogleAuthProvider.credential(idToken);
+      try {
+        await signInWithCredential(auth, credential);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    // @ts-ignore:next-line
+    window?.google?.accounts.id.initialize({
+      client_id: process.env.NEXT_PUBLIC_CLIENT_ID,
+      callback: authHandler,
+    });
+    // @ts-ignore:next-line
+    window?.google?.accounts.id.prompt((notification: any) => {
+      console.log('notification:', notification);
+    });
+  }, []);
+  useEffect(() => {
+    if (loading || user) return;
+    // using a timer to avoid the window?.google being undefined
+    const timer = setTimeout(() => {
+      initializeGSI();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [user, loading, initializeGSI]);
+  return (
+    <>
+      <Script src="https://accounts.google.com/gsi/client" />
+      <Component {...pageProps} />
+    </>
+  );
+}
+
+export default MyApp;
+```
+
+## InitializeGSI function:
+
+We pass a configuration object to the google.accounts.id.initialize method that initializes the Sign In With Google client based on the configuration object. The object contains a client_id and callback. ClientID is your application’s client ID, which you can find in the Google Developers Console or firebase console under authentication configuration. The callback is a function that handles the ID token returned from the One Tap prompt or the pop-up window. This is where your authentication logic goes (actually signing in the user with their token)
+
+```jsx
+const initializeGSI = useCallback(() => {
+  const authHandler = async (response: any) => {
+    const idToken = response.credential;
+    const credential = GoogleAuthProvider.credential(idToken);
+    try {
+      await signInWithCredential(auth, credential);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  // @ts-ignore:next-line
+  window?.google?.accounts.id.initialize({
+    client_id: process.env.NEXT_PUBLIC_CLIENT_ID,
+    callback: authHandler,
+  });
+  // @ts-ignore:next-line
+  window?.google?.accounts.id.prompt((notification: any) => {
+    console.log('notification:', notification);
+  });
+}, []);
+```
+
+## authHandler function:
+
+After getting the ID token, we use signInWithCredential() function from firebase to signIn the user. This function accepts two params: the Auth instance and the auth credential.
+
+```jsx
+const authHandler = async (response: any) => {
+  const idToken = response.credential;
+  const credential = GoogleAuthProvider.credential(idToken);
+  try {
+    await signInWithCredential(auth, credential);
+  } catch (error) {
+    console.log(error);
+  }
+};
+```
+
+## useEffect: invoking everything:
+
+We want to know when to trigger the initializeGSI function. It should be invoked only if there is no authenticated user and the authentication state is not loading. For this, the useEffect hook comes in handy.
+
+```jsx
+useEffect(() => {
+  if (loading || user) return;
+  // using a timer to avoid the window?.google being undefined
+  const timer = setTimeout(() => {
+    initializeGSI();
+  }, 1000);
+  return () => clearTimeout(timer);
+}, [user, loading, initializeGSI]);
+```
+
+## The Output:
+
+<Image src="/images/google_one_tap_output.jpeg" width={1703} height={980} />
